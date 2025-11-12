@@ -44,15 +44,17 @@ lemma add_assoc {a b c : Point} : a + (b + c) = a + b + c := by
 
 -- Define scalar multiplication of a point by a real number
 -- in the way you know from Euclidean geometry.
-def smul (r : ℝ) (a : Point) : Point := sorry
+def smul (r : ℝ) (a : Point) : Point :=
+  { x:= r*a.x
+    y:= r*a.y
+    z:= r*a.z
+  }
 
 -- If you made the right definition, proving these lemmas should be easy.
-@[simp] lemma smul_x (r : ℝ) (a : Point) : (Point.smul r a).x = r * a.x := by sorry
-@[simp] lemma smul_y (r : ℝ) (a : Point) : (Point.smul r a).y = r * a.y := by sorry
-@[simp] lemma smul_z (r : ℝ) (a : Point) : (Point.smul r a).z = r * a.z := by sorry
+@[simp] lemma smul_x (r : ℝ) (a : Point) : (Point.smul r a).x = r * a.x := by rfl
+@[simp] lemma smul_y (r : ℝ) (a : Point) : (Point.smul r a).y = r * a.y := by rfl
+@[simp] lemma smul_z (r : ℝ) (a : Point) : (Point.smul r a).z = r * a.z := by rfl
 
--- This registers the above operation as "scalar multiplication":
--- you can now write • for scalar multiplication.
 instance : SMul ℝ Point := ⟨smul⟩
 
 variable (x : ℝ) (a : Point)
@@ -78,13 +80,46 @@ def weightedAverage (lambda : Real) (lambda_nonneg : 0 ≤ lambda) (lambda_le : 
   (a b : StandardTwoSimplex) : StandardTwoSimplex
 where
   coords := lambda • a.coords + (1 - lambda) • b.coords
-  x_nonneg := by sorry
-  y_nonneg := by sorry
-  z_nonneg := by sorry
-  sum_eq := by sorry
+  x_nonneg := by
+    have hx₁ : 0 ≤ lambda • a.coords.x  :=   mul_nonneg lambda_nonneg  a.x_nonneg
+    have h01 : 0 ≤ 1 - lambda := sub_nonneg.mpr lambda_le
+    have hx₂ : 0 ≤ (1 - lambda) • b.coords.x :=  mul_nonneg h01 b.x_nonneg
+    have hx := add_nonneg hx₁ hx₂
+    change 0 ≤ lambda * a.coords.x + (1 - lambda) * b.coords.x
+    exact hx
 
+
+  y_nonneg := by
+    have hy₁ : 0 ≤ lambda • a.coords.y  :=   mul_nonneg lambda_nonneg  a.y_nonneg
+    have h01 : 0 ≤ 1 - lambda := sub_nonneg.mpr lambda_le
+    have hy₂ : 0 ≤ (1 - lambda) • b.coords.y :=  mul_nonneg h01 b.y_nonneg
+    have hy := add_nonneg hy₁ hy₂
+    change 0 ≤ lambda * a.coords.y + (1 - lambda) * b.coords.y
+    exact hy
+
+  z_nonneg := by
+    have hz₁ : 0 ≤ lambda • a.coords.z  :=   mul_nonneg lambda_nonneg  a.z_nonneg
+    have h01 : 0 ≤ 1 - lambda := sub_nonneg.mpr lambda_le
+    have hz₂ : 0 ≤ (1 - lambda) • b.coords.z :=  mul_nonneg h01 b.z_nonneg
+    have hz := add_nonneg hz₁ hz₂
+    change 0 ≤ lambda * a.coords.z + (1 - lambda) * b.coords.z
+    exact hz
+
+  sum_eq := by
+    have ha := a.sum_eq
+    have hb := b.sum_eq
+    calc
+      (lambda • a.coords + (1 - lambda) • b.coords).x
+        + (lambda • a.coords + (1 - lambda) • b.coords).y
+        + (lambda • a.coords + (1 - lambda) • b.coords).z
+      = lambda • a.coords.x + (1 - lambda) • b.coords.x
+        + (lambda • a.coords.y + (1 - lambda) • b.coords.y)
+        + (lambda • a.coords.z + (1 - lambda) • b.coords.z) := by rfl
+    _ = lambda * (a.coords.x + a.coords.y + a.coords.z)
+          + (1 - lambda) * (b.coords.x + b.coords.y + b.coords.z) := by
+          simp [mul_add, add_assoc, add_comm, add_left_comm]
+    _ = 1 := by simp [ha, hb]
 end
-
 end StandardTwoSimplex
 
 
@@ -203,17 +238,23 @@ lemma not_op_comm : ¬(∀ a b : Point4, op a b = op b a) := by
 def SpecialPoint := { p : Point4 // p.x ^2 + p.y ^2 + p.z ^ 2 + p.w ^ 2 = 1 }
 
 -- We define "the same" operation on special points: complete the proof.
-def op' (a b : SpecialPoint) : SpecialPoint :=
-  ⟨op a.val b.val, (by
-    simp [sq]
-    ring_nf
-    repeat rw [← mul_add]
-    rw [b.property]
+def op' (a b : SpecialPoint) : SpecialPoint := by
+  refine ⟨op a.val b.val, ?_⟩
+  have hmul :
+      (op a.val b.val).x^2 + (op a.val b.val).y^2
+    + (op a.val b.val).z^2 + (op a.val b.val).w^2
+      =
+      (a.val.x^2 + a.val.y^2 + a.val.z^2 + a.val.w^2) *
+      (b.val.x^2 + b.val.y^2 + b.val.z^2 + b.val.w^2) := by
+    simp [op] ; ring
+
+  rw [a.property, b.property,one_mul] at hmul
+  exact hmul
 
 
-
-   )⟩
-
+-- Prove that `SpecialPoint` with the operation `op'` is a group.
+-- (If commutativity holds, it's even an abelian group. You don't need to prove this.)
+-- Here is a definition of
 -- Prove that `SpecialPoint` with the operation `op'` is a group.
 -- (If commutativity holds, it's even an abelian group. You don't need to prove this.)
 -- Here is a definition of group to use.
@@ -242,7 +283,8 @@ noncomputable example : Group' SpecialPoint :=  {
     simp
     rfl
     done
-  inv a := (⟨(⟨a.val.x, -a.val.y, -a.val.z, -a.val.w⟩ : Point4), by simp; exact a.property ⟩ : SpecialPoint)
+  inv a := (⟨(⟨a.val.x, -a.val.y, -a.val.z, -a.val.w⟩ : Point4), by
+    simp; exact a.property ⟩ : SpecialPoint)
   gop_inv := by
     intro a
     unfold op'
