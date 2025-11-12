@@ -310,9 +310,22 @@ Then state and prove the lemma that for any element of a strict bipointed type w
 `∀ z, z ≠ x₀ ∨ z ≠ x₁.` -/
 
 -- give the definition here
-
+structure StrictBipointed where
+  α  : Type
+  x₀ : α
+  x₁ : α
+  neq : x₀ ≠ x₁
 -- state and prove the lemma here
-
+lemma ne_left_or_ne_right  (x : StrictBipointed) :
+  ∀z : x.α  , z ≠ x.x₀ ∨ z ≠ x.x₁ := by
+  intro z
+  by_cases hz0 : z = x.x₀
+  right
+  intro hz
+  have h01 : x.x₀ = x.x₁ := by rw [← hz0, hz]
+  exact x.neq h01
+  left
+  exact hz0
 
 end Bipointed
 
@@ -324,8 +337,40 @@ behind notation. But you can use apply to use the lemmas about real numbers. -/
 
 abbrev PosRat : Type := {x : ℚ // 0 < x}
 
-def groupPosRat : Group PosRat := sorry
+namespace PosRat
 
+def gop (a b : PosRat) : PosRat :=
+  ⟨a.1 * b.1, by exact mul_pos a.2 b.2⟩
+
+def neutral : PosRat :=
+  ⟨1, by exact rfl⟩
+
+def inv (a : PosRat) : PosRat :=
+  ⟨a.1⁻¹, by exact inv_pos.mpr a.2⟩
+
+end PosRat
+
+def groupPosRat : Group' PosRat :=
+{ gop := PosRat.gop,
+  assoc := by
+    intro x y z
+    apply Subtype.ext
+    simp [PosRat.gop, mul_assoc],
+
+  neutral := PosRat.neutral,
+
+  gop_neutral := by
+    intro x
+    apply Subtype.ext
+    simp [PosRat.gop, PosRat.neutral],
+
+  inv := PosRat.inv,
+
+  gop_inv := by
+    intro x
+    apply Subtype.ext
+    have hx0 : (x.1) ≠ 0 := ne_of_gt x.2
+    simp [PosRat.gop, PosRat.neutral, PosRat.inv, hx0] }
 end Subtypes
 
 section EquivalenceRelation
@@ -333,12 +378,48 @@ section EquivalenceRelation
 -- Prove that the following defines an equivalence relation.
 def integerEquivalenceRelation : Setoid (ℤ × ℤ) where
   r := fun ⟨k, l⟩ ⟨m, n⟩ ↦ k + n = l + m
-  iseqv := sorry
+  iseqv :=
+  by
+    refine ⟨?refl, ?symm, ?trans⟩
+    · intro a; rcases a with ⟨k,l⟩
+      simp [add_comm]
+    · intro a b h; rcases a with ⟨k,l⟩; rcases b with ⟨m,n⟩
 
-/- This simp-lemma will simplify `x ≈ y` in the lemma below. -/
+      simpa [add_comm] using h.symm
+    · intro a b c h₁ h₂
+      rcases a with ⟨k,l⟩; rcases b with ⟨m,n⟩; rcases c with ⟨p,q⟩
+
+      have h₁' : k - l = m - n := by
+        have := congrArg (fun t : ℤ => t + (-l) + (-n)) h₁
+        simpa [sub_eq_add_neg, add_comm, add_left_comm, add_assoc] using this
+      have h₂' : m - n = p - q := by
+        have := congrArg (fun t : ℤ => t + (-n) + (-q)) h₂
+        simpa [sub_eq_add_neg, add_comm, add_left_comm, add_assoc] using this
+      have h := h₁'.trans h₂'
+      have := congrArg (fun t : ℤ => t + l + q) h
+      simpa [sub_eq_add_neg, add_comm, add_left_comm, add_assoc]
+        using this
+
 @[simp] lemma integerEquivalenceRelation'_iff (a b : ℤ × ℤ) :
   letI := integerEquivalenceRelation; a ≈ b ↔ a.1 + b.2 = a.2 + b.1 := by rfl
 
-example : Quotient integerEquivalenceRelation ≃ ℤ := sorry
+example : Quotient integerEquivalenceRelation ≃ ℤ :=
+{ toFun :=
+    Quot.lift (fun a : ℤ × ℤ => a.1 - a.2)
+      (by
+        intro a b h
+        have := congrArg (fun t : ℤ => t + (-a.2) + (-b.2)) h
+        simpa [sub_eq_add_neg, add_comm, add_left_comm, add_assoc] using this),
+  invFun := fun z => Quot.mk _ ⟨z, 0⟩,
+  left_inv := by
+    refine Quot.ind ?_
+    intro a
+    apply Quot.sound
+    change (a.1 - a.2) + a.2 = 0 + a.1
+    simp [sub_eq_add_neg, add_comm, add_left_comm],
+  right_inv := by
+    intro z
+    simp [sub_eq_add_neg]}
+
 
 end EquivalenceRelation
